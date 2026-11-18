@@ -1,0 +1,339 @@
+-- ============================================
+-- LIVE ITEMS - MontanaHub (580x500 Compacto + Scroll + Drag + Touch)
+-- ============================================
+
+local CONT_W, CONT_H = 580, 500
+local BG_COLOR = Color3.fromRGB(15, 15, 18)
+local FONT_SIZE = 14
+local FONT_SIZE_HEADER = 16
+local FONT_SIZE_COL = 12
+local ROW_H = 38
+local HOVER_COLOR = Color3.fromRGB(25, 25, 32)
+local SELECT_COLOR = Color3.fromRGB(40, 30, 15)
+local CLOSE_SIZE = 26
+local ASER_SIZE = 18
+local CLOSE_HOVER_COLOR = Color3.fromRGB(220, 50, 50)
+local ASER_HOVER_COLOR = Color3.fromRGB(50, 150, 220)
+local HEADER_DRAG_HEIGHT = 40
+local SCROLL_AREA_HEIGHT = 340
+local VISIBLE_ROWS = 8
+
+local camera = workspace.CurrentCamera
+local function getViewportSize()
+    return camera.ViewportSize.X, camera.ViewportSize.Y
+end
+
+local vpW, vpH = getViewportSize()
+local baseX = (vpW - CONT_W) / 2
+local baseY = (vpH - CONT_H) / 2
+
+local liveItems = {
+    { item = "MP5",        rarity = "LEGENDARY", plr = "16/30", age = "1m", by = "Rizalkano1971",  jobId = "b514fb..54787",  rarityColor = Color3.fromRGB(255, 165, 0),  jobColor = Color3.fromRGB(50, 255, 100) },
+    { item = "MP5",        rarity = "LEGENDARY", plr = "5/30",  age = "1m", by = "Xmfwbwl74414",   jobId = "82b988..dcd84",  rarityColor = Color3.fromRGB(255, 165, 0),  jobColor = Color3.fromRGB(50, 255, 100) },
+    { item = "Remington",  rarity = "LEGENDARY", plr = "4/30",  age = "1m", by = "buenas_t0",      jobId = "2feac9..9940",   rarityColor = Color3.fromRGB(255, 165, 0),  jobColor = Color3.fromRGB(50, 255, 100) },
+    { item = "Remington",  rarity = "LEGENDARY", plr = "5/30",  age = "2m", by = "MDB3R1",         jobId = "835c85..89c",    rarityColor = Color3.fromRGB(255, 165, 0),  jobColor = Color3.fromRGB(50, 255, 100) },
+    { item = "Remington",  rarity = "LEGENDARY", plr = "17/30", age = "2m", by = "PondWaveSand",   jobId = "9da54d..4c0c1",  rarityColor = Color3.fromRGB(255, 165, 0),  jobColor = Color3.fromRGB(50, 255, 100) },
+    { item = "MP5",        rarity = "LEGENDARY", plr = "8/30",  age = "3m", by = "DarkSoul_99",    jobId = "a1b2c3..d4e5f",  rarityColor = Color3.fromRGB(255, 165, 0),  jobColor = Color3.fromRGB(50, 255, 100) },
+    { item = "Remington",  rarity = "LEGENDARY", plr = "12/30", age = "4m", by = "NightHawk",      jobId = "f6g7h8..i9j0k",  rarityColor = Color3.fromRGB(255, 165, 0),  jobColor = Color3.fromRGB(50, 255, 100) },
+    { item = "MP5",        rarity = "LEGENDARY", plr = "22/30", age = "5m", by = "GhostRider",     jobId = "l1m2n3..o4p5q",  rarityColor = Color3.fromRGB(255, 165, 0),  jobColor = Color3.fromRGB(50, 255, 100) },
+    { item = "Remington",  rarity = "LEGENDARY", plr = "9/30",  age = "6m", by = "ShadowX",        jobId = "r6s7t8..u9v0w",  rarityColor = Color3.fromRGB(255, 165, 0),  jobColor = Color3.fromRGB(50, 255, 100) },
+    { item = "MP5",        rarity = "LEGENDARY", plr = "14/30", age = "7m", by = "BlazeFire",      jobId = "x1y2z3..a4b5c",  rarityColor = Color3.fromRGB(255, 165, 0),  jobColor = Color3.fromRGB(50, 255, 100) },
+    { item = "MP5",        rarity = "LEGENDARY", plr = "20/30", age = "8m", by = "StormRider",     jobId = "d6e7f8..g9h0i",  rarityColor = Color3.fromRGB(255, 165, 0),  jobColor = Color3.fromRGB(50, 255, 100) },
+    { item = "Remington",  rarity = "LEGENDARY", plr = "11/30", age = "9m", by = "FireStorm",      jobId = "j1k2l3..m4n5o",  rarityColor = Color3.fromRGB(255, 165, 0),  jobColor = Color3.fromRGB(50, 255, 100) },
+}
+
+local function newSquare(props)
+    local s = Drawing.new("Square")
+    for k, v in pairs(props) do s[k] = v end
+    s.Visible = true
+    return s
+end
+
+local function newText(props)
+    local t = Drawing.new("Text")
+    for k, v in pairs(props) do t[k] = v end
+    t.Visible = true
+    return t
+end
+
+local _elements = {}
+local _refs = {}
+local _running = true
+
+local function addElement(obj, dx, dy)
+    table.insert(_elements, { obj = obj, dx = dx, dy = dy })
+    table.insert(_refs, obj)
+    table.insert(_refs, obj)
+    return obj
+end
+
+local function updateAllPositions()
+    for _, e in ipairs(_elements) do
+        pcall(function() e.obj.Position = Vector2.new(baseX + e.dx, baseY + e.dy) end)
+    end
+end
+
+local function destroyAll()
+    _running = false
+    for _, obj in ipairs(_refs) do
+        pcall(function() obj.Visible = false; obj:Destroy() end)
+    end
+    table.clear(_refs)
+    table.clear(_elements)
+    print("[MontanaHub] UI cerrada y destruida")
+end
+
+local function clampBasePosition()
+    local vpW, vpH = getViewportSize()
+    baseX = math.clamp(baseX, 0, vpW - CONT_W)
+    baseY = math.clamp(baseY, 0, vpH - CONT_H)
+end
+
+local UserInputService = game:GetService("UserInputService")
+local deviceType, deviceIcon = "Desconocido", "?"
+
+local function detectDevice()
+    local hasTouch = UserInputService.TouchEnabled
+    local hasMouse = UserInputService.MouseEnabled
+    local hasKeyboard = UserInputService.KeyboardEnabled
+    local vpW, vpH = getViewportSize()
+    
+    if hasMouse and hasKeyboard and not hasTouch then
+        deviceType, deviceIcon = "PC", "🖥️"
+    elseif hasTouch and not hasMouse then
+        deviceType, deviceIcon = (vpW > 768 and "Tablet" or "iPhone"), "📱"
+    elseif hasTouch and hasMouse then
+        deviceType, deviceIcon = "PC Táctil", "💻"
+    end
+end
+detectDevice()
+
+local scrollOffset = 0
+local maxScroll = math.max(0, (#liveItems - VISIBLE_ROWS) * ROW_H)
+local rowBgs, rowTexts, scrollbarThumb = {}, {}, nil
+
+local function clampScroll()
+    scrollOffset = math.clamp(scrollOffset, 0, maxScroll)
+end
+
+local function updateScroll()
+    for i = 1, #liveItems do
+        local rowDy = 78 + (i - 1) * ROW_H - scrollOffset
+        local isVisible = rowDy >= 78 and rowDy < 78 + SCROLL_AREA_HEIGHT
+        
+        if rowBgs[i] then
+            rowBgs[i].Visible = isVisible
+            rowBgs[i].Position = Vector2.new(baseX + 7, baseY + rowDy)
+        end
+        
+        if rowTexts[i] then
+            for _, textObj in ipairs(rowTexts[i]) do
+                textObj.obj.Visible = isVisible
+                textObj.obj.Position = Vector2.new(baseX + textObj.dx, baseY + rowDy + textObj.dyOffset)
+            end
+        end
+    end
+    
+    if scrollbarThumb and maxScroll > 0 then
+        local scrollPercent = scrollOffset / maxScroll
+        local thumbY = 75 + scrollPercent * (SCROLL_AREA_HEIGHT - scrollbarThumb.Size.Y)
+        scrollbarThumb.Position = Vector2.new(baseX + CONT_W - 12, baseY + thumbY)
+    end
+end
+
+-- UI CREATION
+addElement(newSquare({ Size = Vector2.new(CONT_W, CONT_H), Position = Vector2.new(baseX, baseY), Color = BG_COLOR, Filled = true, Thickness = 0, ZIndex = 1 }), 0, 0)
+addElement(newSquare({ Size = Vector2.new(CONT_W, CONT_H), Position = Vector2.new(baseX, baseY), Color = Color3.fromRGB(40, 40, 45), Filled = false, Thickness = 1, ZIndex = 1 }), 0, 0)
+addElement(newSquare({ Size = Vector2.new(4, CONT_H), Position = Vector2.new(baseX, baseY), Color = Color3.fromRGB(255, 140, 0), Filled = true, Thickness = 0, ZIndex = 2 }), 0, 0)
+
+addElement(newText({ Text = "LIVE ITEMS", Size = FONT_SIZE_HEADER, Color = Color3.fromRGB(255, 255, 255), Position = Vector2.new(baseX + 20, baseY + 12), ZIndex = 2 }), 20, 12)
+addElement(newText({ Text = "|", Size = FONT_SIZE_HEADER, Color = Color3.fromRGB(80, 80, 80), Position = Vector2.new(baseX + 125, baseY + 12), ZIndex = 2 }), 125, 12)
+addElement(newText({ Text = "MontanaHub", Size = FONT_SIZE_HEADER, Color = Color3.fromRGB(150, 150, 150), Position = Vector2.new(baseX + 140, baseY + 12), ZIndex = 2 }), 140, 12)
+addElement(newSquare({ Size = Vector2.new(8, 8), Position = Vector2.new(baseX + CONT_W - 160, baseY + 15), Color = Color3.fromRGB(50, 255, 100), Filled = true, Thickness = 0, ZIndex = 2 }), CONT_W - 160, 15)
+addElement(newText({ Text = "online", Size = FONT_SIZE - 1, Color = Color3.fromRGB(50, 255, 100), Position = Vector2.new(baseX + CONT_W - 148, baseY + 12), ZIndex = 2 }), CONT_W - 148, 12)
+
+local aserBtnDx, aserBtnDy = CONT_W - ASER_SIZE - CLOSE_SIZE - 16, 12
+local aserBtnBg = addElement(newSquare({ Size = Vector2.new(ASER_SIZE, ASER_SIZE), Position = Vector2.new(baseX + aserBtnDx, baseY + aserBtnDy), Color = Color3.fromRGB(35, 35, 40), Filled = true, Thickness = 0, ZIndex = 3 }), aserBtnDx, aserBtnDy)
+local aserBtnBorder = addElement(newSquare({ Size = Vector2.new(ASER_SIZE, ASER_SIZE), Position = Vector2.new(baseX + aserBtnDx, baseY + aserBtnDy), Color = Color3.fromRGB(60, 60, 65), Filled = false, Thickness = 1, ZIndex = 3 }), aserBtnDx, aserBtnDy)
+local aserBtnText = addElement(newText({ Text = "A", Size = 12, Color = Color3.fromRGB(200, 200, 210), Position = Vector2.new(baseX + aserBtnDx + 4, baseY + aserBtnDy - 1), ZIndex = 4 }), aserBtnDx + 4, aserBtnDy - 1)
+
+local closeBtnDx, closeBtnDy = CONT_W - CLOSE_SIZE - 8, 8
+local closeBtnBg = addElement(newSquare({ Size = Vector2.new(CLOSE_SIZE, CLOSE_SIZE), Position = Vector2.new(baseX + closeBtnDx, baseY + closeBtnDy), Color = Color3.fromRGB(35, 35, 40), Filled = true, Thickness = 0, ZIndex = 3 }), closeBtnDx, closeBtnDy)
+local closeBtnBorder = addElement(newSquare({ Size = Vector2.new(CLOSE_SIZE, CLOSE_SIZE), Position = Vector2.new(baseX + closeBtnDx, baseY + closeBtnDy), Color = Color3.fromRGB(60, 60, 65), Filled = false, Thickness = 1, ZIndex = 3 }), closeBtnDx, closeBtnDy)
+local closeBtnX1 = addElement(newText({ Text = "×", Size = 20, Color = Color3.fromRGB(200, 200, 210), Position = Vector2.new(baseX + closeBtnDx + 5, baseY + closeBtnDy + 1), ZIndex = 4 }), closeBtnDx + 5, closeBtnDy + 1)
+
+local function getAserBtnArea() return { x1 = baseX + aserBtnDx, y1 = baseY + aserBtnDy, x2 = baseX + aserBtnDx + ASER_SIZE, y2 = baseY + aserBtnDy + ASER_SIZE } end
+local function getCloseBtnArea() return { x1 = baseX + closeBtnDx, y1 = baseY + closeBtnDy, x2 = baseX + closeBtnDx + CLOSE_SIZE, y2 = baseY + closeBtnDy + CLOSE_SIZE } end
+local function getHeaderDragArea() return { x1 = baseX, y1 = baseY, x2 = baseX + CONT_W - CLOSE_SIZE - ASER_SIZE - 24, y2 = baseY + HEADER_DRAG_HEIGHT } end
+
+addElement(newSquare({ Size = Vector2.new(CONT_W - 14, 1), Position = Vector2.new(baseX + 7, baseY + 42), Color = Color3.fromRGB(40, 40, 45), Filled = true, Thickness = 0, ZIndex = 2 }), 7, 42)
+
+local colHeaders = { { text = "ITEM", dx = 20 }, { text = "RARITY", dx = 130 }, { text = "PLR", dx = 250 }, { text = "AGE", dx = 330 }, { text = "BY", dx = 390 }, { text = "JOB ID", dx = 480 } }
+for _, col in ipairs(colHeaders) do
+    addElement(newText({ Text = col.text, Size = FONT_SIZE_COL, Color = Color3.fromRGB(120, 120, 130), Position = Vector2.new(baseX + col.dx, baseY + 52), ZIndex = 2 }), col.dx, 52)
+end
+
+addElement(newSquare({ Size = Vector2.new(CONT_W - 14, 1), Position = Vector2.new(baseX + 7, baseY + 72), Color = Color3.fromRGB(30, 30, 35), Filled = true, Thickness = 0, ZIndex = 2 }), 7, 72)
+addElement(newSquare({ Size = Vector2.new(CONT_W - 14, SCROLL_AREA_HEIGHT), Position = Vector2.new(baseX + 7, baseY + 75), Color = Color3.fromRGB(12, 12, 15), Filled = true, Thickness = 0, ZIndex = 1 }), 7, 75)
+
+local startDy = 78
+for i, data in ipairs(liveItems) do
+    local rowDy = startDy + (i - 1) * ROW_H
+    local rowBg = newSquare({ Size = Vector2.new(CONT_W - 20, ROW_H - 2), Position = Vector2.new(baseX + 7, baseY + rowDy), Color = BG_COLOR, Filled = true, Thickness = 0, ZIndex = 1 })
+    addElement(rowBg, 7, rowDy)
+    rowBgs[i] = rowBg
+    rowTexts[i] = {}
+
+    local function addRowText(text, color, dx, dyOffset)
+        local t = addElement(newText({ Text = text, Size = FONT_SIZE, Color = color, Position = Vector2.new(baseX + dx, baseY + rowDy + dyOffset), ZIndex = 2 }), dx, rowDy + dyOffset)
+        table.insert(rowTexts[i], { obj = t, dx = dx, dyOffset = dyOffset })
+    end
+
+    addRowText(data.item, Color3.fromRGB(220, 220, 230), 20, 10)
+    addRowText(data.rarity, data.rarityColor, 130, 10)
+    addRowText(data.plr, Color3.fromRGB(150, 150, 160), 250, 10)
+    addRowText(data.age, Color3.fromRGB(150, 150, 160), 330, 10)
+    addRowText(data.by, Color3.fromRGB(200, 200, 210), 390, 10)
+    addRowText(data.jobId, data.jobColor, 480, 10)
+
+    if i < #liveItems then
+        addElement(newSquare({ Size = Vector2.new(CONT_W - 30, 1), Position = Vector2.new(baseX + 10, baseY + rowDy + ROW_H - 4), Color = Color3.fromRGB(25, 25, 30), Filled = true, Thickness = 0, ZIndex = 2 }), 10, rowDy + ROW_H - 4)
+    end
+end
+
+addElement(newSquare({ Size = Vector2.new(4, SCROLL_AREA_HEIGHT), Position = Vector2.new(baseX + CONT_W - 12, baseY + 75), Color = Color3.fromRGB(30, 30, 35), Filled = true, Thickness = 0, ZIndex = 2 }), CONT_W - 12, 75)
+local thumbHeight = math.max(30, SCROLL_AREA_HEIGHT * (VISIBLE_ROWS / #liveItems))
+scrollbarThumb = addElement(newSquare({ Size = Vector2.new(4, thumbHeight), Position = Vector2.new(baseX + CONT_W - 12, baseY + 75), Color = Color3.fromRGB(255, 140, 0), Filled = true, Thickness = 0, ZIndex = 3 }), CONT_W - 12, 75)
+
+addElement(newSquare({ Size = Vector2.new(CONT_W - 14, 1), Position = Vector2.new(baseX + 7, baseY + CONT_H - 35), Color = Color3.fromRGB(40, 40, 45), Filled = true, Thickness = 0, ZIndex = 2 }), 7, CONT_H - 35)
+local footerText = addElement(newText({ Text = "Scroll para ver más • " .. deviceIcon .. " " .. deviceType, Size = FONT_SIZE - 2, Color = Color3.fromRGB(90, 90, 100), Position = Vector2.new(baseX + 20, baseY + CONT_H - 27), ZIndex = 2 }), 20, CONT_H - 27)
+
+local mouse = game:GetService("Players").LocalPlayer:GetMouse()
+local function isMouseInArea(area) return mouse.X >= area.x1 and mouse.X <= area.x2 and mouse.Y >= area.y1 and mouse.Y <= area.y2 end
+local function isPointInArea(px, py, area) return px >= area.x1 and px <= area.x2 and py >= area.y1 and py <= area.y2 end
+local function getScrollArea() return { x1 = baseX + 7, y1 = baseY + 75, x2 = baseX + CONT_W - 14, y2 = baseY + 75 + SCROLL_AREA_HEIGHT } end
+local function getRowArea(i)
+    local rowDy = startDy + (i - 1) * ROW_H - scrollOffset
+    return { x1 = baseX + 7, y1 = baseY + rowDy, x2 = baseX + 7 + CONT_W - 20, y2 = baseY + rowDy + ROW_H - 2 }
+end
+
+local dragging, dragStartMouseX, dragStartMouseY, dragStartBaseX, dragStartBaseY = false, 0, 0, 0, 0
+local activeTouchId, scrolling, scrollStartY, scrollStartOffset = nil, false, 0, 0
+
+UserInputService.InputChanged:Connect(function(input, gameProcessed)
+    if not _running or gameProcessed then return end
+    if input.UserInputType == Enum.UserInputType.MouseWheel and isMouseInArea(getScrollArea()) then
+        scrollOffset = scrollOffset - input.Position.Z * 30
+        clampScroll()
+        updateScroll()
+    elseif input.UserInputType == Enum.UserInputType.Touch and input.UserInputId == activeTouchId then
+        if dragging then
+            baseX = dragStartBaseX + (input.Position.X - dragStartMouseX)
+            baseY = dragStartBaseY + (input.Position.Y - dragStartMouseY)
+            clampBasePosition()
+            updateAllPositions()
+        elseif scrolling then
+            scrollOffset = scrollStartOffset + (scrollStartY - input.Position.Y)
+            clampScroll()
+            updateScroll()
+        end
+    end
+end)
+
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+    if not _running or gameProcessed then return end
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        local mx, my = mouse.X, mouse.Y
+        if isPointInArea(mx, my, getCloseBtnArea()) then destroyAll(); return end
+        if isPointInArea(mx, my, getAserBtnArea()) then
+            aserBtnBg.Color = ASER_HOVER_COLOR
+            task.delay(0.2, function() if _running then aserBtnBg.Color = Color3.fromRGB(35, 35, 40) end end)
+            return
+        end
+        if isPointInArea(mx, my, getHeaderDragArea()) then
+            dragging = true; dragStartMouseX, dragStartMouseY = mx, my; dragStartBaseX, dragStartBaseY = baseX, baseY
+        end
+    elseif input.UserInputType == Enum.UserInputType.Touch then
+        activeTouchId = input.UserInputId
+        local tx, ty = input.Position.X, input.Position.Y
+        if isPointInArea(tx, ty, getCloseBtnArea()) then destroyAll(); return end
+        if isPointInArea(tx, ty, getAserBtnArea()) then
+            aserBtnBg.Color = ASER_HOVER_COLOR
+            task.delay(0.2, function() if _running then aserBtnBg.Color = Color3.fromRGB(35, 35, 40) end end)
+            return
+        end
+        if isPointInArea(tx, ty, getHeaderDragArea()) then
+            dragging = true; dragStartMouseX, dragStartMouseY = tx, ty; dragStartBaseX, dragStartBaseY = baseX, baseY
+        elseif isPointInArea(tx, ty, getScrollArea()) then
+            scrolling = true; scrollStartY = ty; scrollStartOffset = scrollOffset
+        end
+    end
+end)
+
+UserInputService.InputEnded:Connect(function(input, gameProcessed)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then dragging = false end
+    if input.UserInputType == Enum.UserInputType.Touch and input.UserInputId == activeTouchId then
+        if dragging then
+            local tx, ty = input.Position.X, input.Position.Y
+            if math.abs(tx - dragStartMouseX) + math.abs(ty - dragStartMouseY) < 10 then
+                for i = 1, #liveItems do
+                    if isPointInArea(tx, ty, getRowArea(i)) then
+                        if setclipboard then setclipboard(liveItems[i].jobId) end
+                        if rowBgs[i] then
+                            rowBgs[i].Color = SELECT_COLOR
+                            task.delay(0.3, function() if rowBgs[i] and _running then rowBgs[i].Color = BG_COLOR end end)
+                        end
+                        break
+                    end
+                end
+            end
+        end
+        dragging, scrolling, activeTouchId = false, false, nil
+    end
+end)
+
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+    if not _running or gameProcessed or input.UserInputType ~= Enum.UserInputType.MouseButton1 then return end
+    if isMouseInArea(getHeaderDragArea()) or isMouseInArea(getCloseBtnArea()) or isMouseInArea(getAserBtnArea()) then return end
+    for i = 1, #liveItems do
+        if isMouseInArea(getRowArea(i)) then
+            if setclipboard then setclipboard(liveItems[i].jobId) end
+            if rowBgs[i] then
+                rowBgs[i].Color = SELECT_COLOR
+                task.delay(0.3, function() if rowBgs[i] and _running then rowBgs[i].Color = BG_COLOR end end)
+            end
+            break
+        end
+    end
+end)
+
+task.spawn(function()
+    local hoveredRow, hoveredClose, hoveredAser = nil, false, false
+    while _running and task.wait(0.016) do
+        local newHovered, closeHovered, aserHovered = nil, false, false
+        if isMouseInArea(getCloseBtnArea()) then closeHovered = true end
+        if isMouseInArea(getAserBtnArea()) then aserHovered = true end
+        if not dragging and not scrolling then
+            for i = 1, #liveItems do
+                if isMouseInArea(getRowArea(i)) then newHovered = i; break end
+            end
+        end
+        
+        if closeHovered ~= hoveredClose then
+            closeBtnBg.Color = closeHovered and CLOSE_HOVER_COLOR or Color3.fromRGB(35, 35, 40)
+            closeBtnBorder.Color = closeHovered and CLOSE_HOVER_COLOR or Color3.fromRGB(60, 60, 65)
+            closeBtnX1.Color = closeHovered and Color3.fromRGB(255, 255, 255) or Color3.fromRGB(200, 200, 210)
+            hoveredClose = closeHovered
+        end
+        if aserHovered ~= hoveredAser then
+            aserBtnBg.Color = aserHovered and ASER_HOVER_COLOR or Color3.fromRGB(35, 35, 40)
+            aserBtnBorder.Color = aserHovered and ASER_HOVER_COLOR or Color3.fromRGB(60, 60, 65)
+            aserBtnText.Color = aserHovered and Color3.fromRGB(255, 255, 255) or Color3.fromRGB(200, 200, 210)
+            hoveredAser = aserHovered
+        end
+        if newHovered ~= hoveredRow then
+            if hoveredRow and rowBgs[hoveredRow] then rowBgs[hoveredRow].Color = BG_COLOR end
+            if newHovered then rowBgs[newHovered].Color = HOVER_COLOR end
+            hoveredRow = newHovered
+        end
+        for _,  e in ipairs(_elements) do pcall(function() e.obj.Visible = true end) end    endend)task.spawn(function()    local lastVpW, lastVpH = getViewportSize()    while _running and task.wait(1) do        local vpW, vpH = getViewportSize()        if vpW ~= lastVpW or vpH ~= lastVpH then            clampBasePosition(); updateAllPositions(); lastVpW, lastVpH = vpW, vpH        end    endend)updateScroll()print("[ LIVE ITEM] 
